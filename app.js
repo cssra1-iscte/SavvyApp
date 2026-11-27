@@ -398,7 +398,10 @@ function vEstatisticas() {
   const cats = byCategory(cur), prevCats = Object.fromEntries(byCategory(addMonths(cur, -1)).map(c => [c.id, c.v]));
   const last12 = Array.from({ length: 12 }, (_, i) => addMonths(cur, i - 11));
   const isCurrent = cur === nowKey();
-  const days = isCurrent ? new Date().getDate() : daysIn(cur);
+  // Weekly budget: what's left after all expenses and savings, spread over the remaining weeks
+  const dim = daysIn(cur);
+  const daysLeft = isCurrent ? dim - new Date().getDate() + 1 : dim;
+  const perWeek = t.balAfter / (daysLeft / 7);
   const tot12 = last12.map(k => totals(k));
   const active = tot12.filter(x => x.exp > 0 || x.inc > 0);
   const avgExp = active.length ? active.reduce((a, x) => a + x.exp, 0) / active.length : 0;
@@ -414,7 +417,7 @@ function vEstatisticas() {
       <div class="kpi glass"><small>Poupado este mês 🐷</small><b style="color:var(--sav)">${fmt(t.sav)}</b>${delta(ds, true) || `<span class="delta" style="color:var(--muted)">${Math.round(t.rate * 100)}% das receitas</span>`}</div>
       <div class="kpi glass"><small>Taxa de poupança</small><b>${Math.round(t.rate * 100)}%</b><span class="delta" style="color:var(--muted)">gastas ${spendShare}% das receitas</span></div>
       <div class="kpi glass"><small>Saldo disponível</small><b style="color:${t.bal < 0 ? 'var(--neg)' : 'inherit'}">${fmt(t.bal)}</b><span class="delta" style="color:var(--muted)">${t.unpaid ? `depois de pagar: ${fmt(t.balAfter)}` : 'receitas − despesas pagas − poupança'}</span></div>
-      <div class="kpi glass"><small>Média por dia</small><b>${fmt(t.exp / days)}</b><span class="delta" style="color:var(--muted)">${isCurrent ? 'até hoje' : 'no mês'}</span></div>
+      <div class="kpi glass"><small>Para gastar por semana</small><b style="color:${perWeek < 0 ? 'var(--neg)' : 'inherit'}">${fmt(perWeek)}</b><span class="delta" style="color:var(--muted)">${isCurrent ? `faltam ${daysLeft} dias` : 'no mês'}</span></div>
       <div class="kpi glass"><small>Total poupado</small><b>${fmt0(allSaved)}</b><span class="delta" style="color:var(--muted)">média ${fmt0(avgSav)}/mês</span></div>
     </div>
     <div class="card glass"><div class="card-head"><h2>Despesas por categoria</h2></div>
