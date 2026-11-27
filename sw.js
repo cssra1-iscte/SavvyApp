@@ -1,5 +1,5 @@
 // Offline-first service worker
-const CACHE = 'savvy-v1';
+const CACHE = 'savvy-v2';
 const ASSETS = [
   './', './index.html', './styles.css', './app.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png'
@@ -17,19 +17,20 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Cache first, refresh in background
+// Network first (fresh when online), cache fallback when offline
 self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
-  e.respondWith(
-    caches.match(e.request, { ignoreSearch: true }).then(hit => {
-      const net = fetch(e.request).then(res => {
-        if (res && res.ok && new URL(e.request.url).origin === location.origin) {
-          const copy = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, copy));
-        }
-        return res;
-      }).catch(() => hit || caches.match('./index.html'));
-      return hit || net;
-    })
-  );
+  if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return;
+  e.respondWith((async () => {
+    const cache = await caches.open(CACHE);
+    try {
+      const res = await Promise.race([
+        fetch(e.request),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 3500))
+      ]);
+      if (res && res.ok) cache.put(e.request, res.clone());
+      return res;
+    } catch {
+      return (await cache.match(e.request, { ignoreSearch: true })) || (await cache.match('./index.html'));
+    }
+  })());
 });

@@ -21,7 +21,7 @@
   <div class="shell">
     <!-- Sidebar (desktop) -->
     <aside class="sidebar glass">
-      <div class="logo"><span class="logo-mark"><i></i><i></i><i></i></span>savvy</div>
+      <button class="logo" data-nav="definicoes" aria-label="Definições"><span class="logo-mark"><i></i><i></i><i></i></span>savvy</button>
       <nav class="side-nav" id="sideNav"></nav>
       <div class="side-card">
         <div class="side-illu">💡</div>
@@ -34,7 +34,7 @@
     <!-- Main -->
     <main class="main">
       <header class="topbar">
-        <div class="logo mobile-only"><span class="logo-mark"><i></i><i></i><i></i></span>savvy</div>
+        <button class="logo mobile-only" data-nav="definicoes" aria-label="Definições"><span class="logo-mark"><i></i><i></i><i></i></span>savvy</button>
         <div class="month-switch glass">
           <button data-action="prev-month" aria-label="Mês anterior">‹</button>
           <span id="monthLabel"></span>
@@ -42,7 +42,7 @@
         </div>
         <button class="icon-btn glass desktop-only" data-action="add" aria-label="Adicionar">＋</button>
       </header>
-      <h1 id="viewTitle"></h1>
+      <h1><button class="back" id="backBtn" data-action="back" aria-label="Voltar" hidden>‹</button><span id="viewTitle"></span></h1>
       <section id="view"></section>
     </main>
 
@@ -57,7 +57,7 @@
   <div class="sheet-backdrop" id="backdrop" hidden>
     <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
   </div>
-  <div class="toast" id="toast" hidden></div>
+  <div class="toast" id="toast" hidden><span id="toastMsg"></span><button id="toastUndo" data-action="undo" hidden>Anular</button></div>
 
   <script src="app.js"></script>
 </body>
