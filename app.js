@@ -2,7 +2,7 @@
 
 /* ================= Data ================= */
 const STORE = 'savvy.v1';
-const VERSION = '1.1';
+const VERSION = '1.3';
 
 const CATS = {
   expense: [
@@ -893,7 +893,20 @@ window.addEventListener('hashchange', () => {
 let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; if (view === 'definicoes') render(); });
 
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+// Auto-update: check for a new version on open/resume and reload once it takes over
+if ('serviceWorker' in navigator) {
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadController && !reloaded && !sheetOpen) { reloaded = true; location.reload(); }
+  });
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
+      reg.update().catch(() => {});
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
+    }).catch(() => {});
+  });
+}
 if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
 
 render();

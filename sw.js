@@ -1,5 +1,5 @@
 // Offline-first service worker
-const CACHE = 'savvy-v4';
+const CACHE = 'savvy-v5';
 const ASSETS = [
   './', './index.html', './styles.css', './app.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png'
@@ -24,7 +24,7 @@ self.addEventListener('fetch', e => {
     const cache = await caches.open(CACHE);
     try {
       const res = await Promise.race([
-        fetch(e.request),
+        fetch(e.request, { cache: 'no-cache' }),
         new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 3500))
       ]);
       if (res && res.ok) cache.put(e.request, res.clone());
