@@ -117,7 +117,8 @@ function totals(key) {
       if (!e.paid) { t.unpaid += e.amount; t.unpaidN++; }
     }
   }
-  t.bal = t.inc - t.exp - t.sav;            // money left after spending and saving
+  t.bal = t.inc - (t.exp - t.unpaid) - t.sav;  // only paid expenses reduce the balance
+  t.balAfter = t.inc - t.exp - t.sav;           // balance once everything is paid
   t.rate = t.inc > 0 ? t.sav / t.inc : 0;   // savings rate
   return t;
 }
@@ -327,7 +328,7 @@ function vDashboard() {
   return `
   <div class="dash-top">
     <div class="balance">
-      <div class="row"><div><small>Saldo disponível</small><div class="big">${fmt(t.bal)}</div></div>
+      <div class="row"><div><small>Saldo disponível</small><div class="big">${fmt(t.bal)}</div>${t.unpaid ? `<small style="margin-top:2px">Depois de pagar tudo: ${fmt(t.balAfter)}</small>` : ''}</div>
         <div style="text-align:right"><small>Por pagar</small><b style="font-size:16px">${fmt0(t.unpaid)}</b></div></div>
       <div class="dots">•••• •••• •••• <b>${cur.slice(0, 4)}</b></div>
       <div class="row mini">
@@ -412,7 +413,7 @@ function vEstatisticas() {
       <div class="kpi glass"><small>Gasto este mês</small><b>${fmt(t.exp)}</b>${delta(d, false)}</div>
       <div class="kpi glass"><small>Poupado este mês 🐷</small><b style="color:var(--sav)">${fmt(t.sav)}</b>${delta(ds, true) || `<span class="delta" style="color:var(--muted)">${Math.round(t.rate * 100)}% das receitas</span>`}</div>
       <div class="kpi glass"><small>Taxa de poupança</small><b>${Math.round(t.rate * 100)}%</b><span class="delta" style="color:var(--muted)">gastas ${spendShare}% das receitas</span></div>
-      <div class="kpi glass"><small>Saldo disponível</small><b style="color:${t.bal < 0 ? 'var(--neg)' : 'inherit'}">${fmt(t.bal)}</b><span class="delta" style="color:var(--muted)">receitas − despesas − poupança</span></div>
+      <div class="kpi glass"><small>Saldo disponível</small><b style="color:${t.bal < 0 ? 'var(--neg)' : 'inherit'}">${fmt(t.bal)}</b><span class="delta" style="color:var(--muted)">${t.unpaid ? `depois de pagar: ${fmt(t.balAfter)}` : 'receitas − despesas pagas − poupança'}</span></div>
       <div class="kpi glass"><small>Média por dia</small><b>${fmt(t.exp / days)}</b><span class="delta" style="color:var(--muted)">${isCurrent ? 'até hoje' : 'no mês'}</span></div>
       <div class="kpi glass"><small>Total poupado</small><b>${fmt0(allSaved)}</b><span class="delta" style="color:var(--muted)">média ${fmt0(avgSav)}/mês</span></div>
     </div>
