@@ -1,5 +1,5 @@
 // Offline-first service worker
-const CACHE = 'savvy-v5';
+const CACHE = 'savvy-v6';
 const ASSETS = [
   './', './index.html', './styles.css', './app.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png'
