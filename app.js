@@ -37,11 +37,16 @@ const CAT_COLORS = ['#5B5FE0', '#F4A9BC', '#8FA8F7', '#F0835E', '#7BCBA4', '#B79
 const COL = { inc: '#5B5FE0', exp: '#F4A9BC', sav: '#7BCBA4' };
 const GOAL_EMOJIS = ['🐷', '🎯', '🏖️', '🚗', '🏠', '💻', '🎓', '💍', '🛟', '✈️', '🎁', '📱'];
 
-const blank = () => ({ version: 2, currency: 'EUR', name: '', tx: [], recurring: [], goals: [] });
+const blank = () => ({ version: 2, currency: 'EUR', name: '', tx: [], recurring: [], goals: [], customCats: { expense: [], income: [], saving: [] } });
 
 function load() {
-  try { return Object.assign(blank(), JSON.parse(localStorage.getItem(STORE)) || {}); }
+  try { return normalize(JSON.parse(localStorage.getItem(STORE)) || {}); }
   catch { return blank(); }
+}
+function normalize(d) {
+  const s = Object.assign(blank(), d);
+  s.customCats = Object.assign({ expense: [], income: [], saving: [] }, s.customCats || {});
+  return s;
 }
 function save() { localStorage.setItem(STORE, JSON.stringify(S)); }
 
@@ -76,7 +81,10 @@ function fmt(n, dec = 2) {
 function fmt0(n) { return fmt(n, Math.abs(n) >= 1000 ? 0 : 2); }
 function parseAmt(v) { const n = parseFloat(String(v ?? '').replace(/\s/g, '').replace(',', '.')); return isFinite(n) ? Math.round(n * 100) / 100 : NaN; }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-function cat(type, id) { const l = CATS[type] || CATS.expense; return l.find(c => c.id === id) || l[l.length - 1]; }
+function cats(type) { return [...(CATS[type] || CATS.expense), ...((S.customCats || {})[type] || [])]; }
+function cat(type, id) { const base = CATS[type] || CATS.expense; return cats(type).find(c => c.id === id) || base[base.length - 1]; }
+const PASTELS = ['#E6E7FD', '#E1F4EA', '#FDE9DF', '#E2EEFC', '#FFF4D6', '#EFE4FB', '#FCE6EC', '#E4F1F7', '#FBE6F5', '#E8F0DE', '#DFF3F6'];
+const CAT_EMOJIS = ['☕', '🍺', '🐶', '👶', '💇', '🎮', '🎁', '🏋️', '⛽', '🚌', '🏥', '📱', '👕', '🧴', '🔧', '🎵', '🌱', '🧾', '💡', '🎉'];
 function goalName(id) { return S.goals.find(g => g.id === id)?.name; }
 const $ = (s, r = document) => r.querySelector(s);
 
@@ -464,6 +472,7 @@ function vDefinicoes() {
 
   <div class="section-title">Movimentos</div>
   <div class="card glass">
+    <div class="settings-item"><div><b>Categorias</b><small>${['expense', 'income', 'saving'].reduce((a, t) => a + S.customCats[t].length, 0)} criadas por ti</small></div><button class="btn sm" data-action="list-cats">Gerir</button></div>
     <div class="settings-item"><div><b>Fixos mensais</b><small>Despesas, receitas e poupanças que se repetem</small></div><button class="btn sm" data-action="list-rec">Gerir</button></div>
     <div class="settings-item"><div><b>Marcar tudo como pago</b><small>Despesas de ${monthLabel(cur)}</small></div><button class="btn sm" data-action="pay-all">Marcar</button></div>
   </div>
@@ -527,7 +536,7 @@ function toast(msg, withUndo) {
 }
 
 function txForm({ mode = 'new', type = 'expense', fixed = false, item = {}, month } = {}) {
-  const st = { type: item.type || type, cat: item.cat || CATS[item.type || type][0].id };
+  const st = { type: item.type || type, cat: item.cat || CATS[item.type || type][0].id, adding: false, newIc: CAT_EMOJIS[0], newName: '' };
   if (mode === 'new' && !item.date) item.date = cur === nowKey() ? today() : cur + '-01';
   let paid = mode === 'rec' ? recPaid(item, month) : mode === 'tx' ? item.paid !== false : item.date <= today();
   let goalId = item.goalId || '';
@@ -540,8 +549,17 @@ function txForm({ mode = 'new', type = 'expense', fixed = false, item = {}, mont
         ${['expense', 'income', 'saving'].map(k => `<button type="button" class="${st.type === k ? 'on' : ''}" data-t="${k}">${k === 'saving' ? '🐷 ' : ''}${TYPE_LABEL[k]}</button>`).join('')}</div>
       <div class="field"><input class="input amount-input" id="fAmt" inputmode="decimal" placeholder="0,00" value="${item.amount != null ? String(item.amount).replace('.', ',') : ''}" style="color:${amtCol}"></div>
       ${st.type === 'saving' ? `<p style="font-size:11px;color:var(--muted);margin:-6px 2px 12px;text-align:center">Dinheiro que pões de lado — não conta como despesa nem como receita.</p>` : ''}
-      <div class="field"><label>Categoria</label><div class="cats">${CATS[st.type].map(c =>
-        `<button type="button" class="${c.id === st.cat ? 'on' : ''}" data-c="${c.id}"><span class="avatar" style="background:${c.c}">${c.ic}</span>${c.name}</button>`).join('')}</div></div>
+      <div class="field"><label>Categoria</label><div class="cats">${cats(st.type).map(c =>
+        `<button type="button" class="${c.id === st.cat ? 'on' : ''}" data-c="${c.id}"><span class="avatar" style="background:${c.c}">${c.ic}</span>${esc(c.name)}</button>`).join('')}
+        <button type="button" class="new-cat ${st.adding ? 'on' : ''}" data-newcat><span class="avatar">＋</span>Nova</button></div>
+        ${st.adding ? `<div class="new-cat-box">
+          <div class="emoji-pick">${CAT_EMOJIS.map(e => `<button type="button" class="${e === st.newIc ? 'on' : ''}" data-ne="${e}">${e}</button>`).join('')}</div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <input class="input" id="ncIc" maxlength="4" value="${st.newIc}" style="width:58px;text-align:center;font-size:20px;padding:8px" aria-label="Emoji">
+            <input class="input" id="ncName" maxlength="20" placeholder="Nome da categoria" value="${esc(st.newName)}">
+          </div>
+          <div class="row-btns"><button type="button" class="btn sm" data-nc="cancel">Cancelar</button><button type="button" class="btn primary sm" data-nc="add">Adicionar</button></div>
+        </div>` : ''}</div>
       ${st.type === 'saving' && S.goals.length ? `<div class="field"><label>Objetivo (opcional)</label><select class="input" id="fGoal">${goalOpts}</select></div>` : ''}
       <div class="field"><label>Descrição</label><input class="input" id="fDesc" maxlength="60" placeholder="${st.type === 'saving' ? 'ex.: Transferência para poupança' : 'ex.: Renda, Continente, Netflix…'}" value="${esc(item.desc || '')}"></div>
       <div class="field"><label>${mode === 'rec' ? 'Dia do mês' : 'Data'}</label>${mode === 'rec'
@@ -557,8 +575,27 @@ function txForm({ mode = 'new', type = 'expense', fixed = false, item = {}, mont
         <button class="btn primary" data-act="save">Guardar</button></div>
       ${mode === 'rec' ? `<p style="font-size:11px;color:var(--muted);margin:12px 2px 0">Começou em ${monthLabel(item.start)}${item.end ? ` · terminou em ${monthLabel(item.end)}` : ''}. “Terminar” mantém o histórico e deixa de contar nos meses seguintes; “Apagar” remove-o de todos os meses.</p>` : ''}`);
     const sh = $('#sheet');
-    sh.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { keep(); st.type = b.dataset.t; st.cat = CATS[st.type][0].id; draw(); });
+    sh.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { keep(); st.type = b.dataset.t; st.cat = CATS[st.type][0].id; st.adding = false; draw(); });
     sh.querySelectorAll('[data-c]').forEach(b => b.onclick = () => { keep(); st.cat = b.dataset.c; draw(); });
+    sh.querySelector('[data-newcat]').onclick = () => { keep(); st.adding = !st.adding; draw(); if (st.adding) setTimeout(() => $('#ncName')?.focus(), 50); };
+    sh.querySelectorAll('[data-ne]').forEach(b => b.onclick = () => {
+      st.newIc = b.dataset.ne; $('#ncIc').value = st.newIc;
+      sh.querySelectorAll('[data-ne]').forEach(x => x.classList.toggle('on', x === b));
+    });
+    const nc = sh.querySelector('[data-nc="add"]');
+    if (nc) {
+      sh.querySelector('[data-nc="cancel"]').onclick = () => { keep(); st.adding = false; draw(); };
+      nc.onclick = () => {
+        keep();
+        const name = ($('#ncName').value || '').trim(), ic = ($('#ncIc').value || '').trim() || '🏷️';
+        if (!name) { toast('Indica o nome da categoria'); return; }
+        const list = S.customCats[st.type];
+        const c = { id: 'c_' + uid(), name, ic, c: PASTELS[list.length % PASTELS.length] };
+        list.push(c); save();
+        st.cat = c.id; st.adding = false; st.newName = ''; draw();
+        toast(`Categoria “${name}” criada`);
+      };
+    }
     sh.querySelector('[data-act="save"]').onclick = submit;
     const del = sh.querySelector('[data-act="del"]'); if (del) del.onclick = remove;
     const stop = sh.querySelector('[data-act="stop"]'); if (stop) stop.onclick = stopRec;
@@ -576,6 +613,8 @@ function txForm({ mode = 'new', type = 'expense', fixed = false, item = {}, mont
     if (fx) fixed = fx.checked;
     if (pd) paid = pd.checked;
     if (gl) goalId = gl.value;
+    const ni = $('#ncIc'), nn = $('#ncName');
+    if (ni) st.newIc = ni.value; if (nn) st.newName = nn.value;
   };
   const submit = () => {
     keep();
@@ -638,6 +677,19 @@ function recList() {
   }
   openSheet(`<h3>Fixos mensais</h3>${html || '<div class="empty">Ainda não tens fixos.</div>'}
     <button class="btn primary block" style="margin-top:12px" data-action="add" data-fixed="1">＋ Novo fixo</button>`);
+}
+
+function catList() {
+  const groups = { expense: 'Despesas', income: 'Receitas', saving: '🐷 Poupanças' };
+  let html = '';
+  for (const [t, label] of Object.entries(groups)) {
+    const rows = S.customCats[t].map(c => `<div class="tx"><span class="avatar" style="background:${c.c}">${c.ic}</span>
+      <span class="info"><b>${esc(c.name)}</b><small>${(n => n + (n === 1 ? ' movimento' : ' movimentos'))([...S.tx, ...S.recurring].filter(x => x.type === t && x.cat === c.id).length)}</small></span>
+      <button class="btn sm danger" data-action="del-cat" data-type="${t}" data-id="${c.id}">Apagar</button></div>`).join('');
+    if (rows) html += `<div class="tx-group">${label}</div>${rows}`;
+  }
+  openSheet(`<h3>Categorias</h3>${html || '<div class="empty"><span class="e-ic">🏷️</span>Ainda não criaste categorias.<br>Usa “＋ Nova” ao adicionar um movimento.</div>'}
+    <p style="font-size:11px;color:var(--muted);margin:12px 2px 0">Ao apagar uma categoria, os movimentos dela passam para “Outros”.</p>`);
 }
 
 function goalForm(g) {
@@ -707,7 +759,7 @@ function importFile(e) {
     try {
       const d = JSON.parse(r.result);
       if (!Array.isArray(d.tx) || !Array.isArray(d.goals)) throw 0;
-      mutate(() => { S = Object.assign(blank(), d); }, 'Cópia importada ✓');
+      mutate(() => { S = normalize(d); }, 'Cópia importada ✓');
     } catch { toast('Ficheiro inválido'); }
   };
   r.readAsText(file);
@@ -794,6 +846,17 @@ document.addEventListener('click', e => {
     case 'contrib': contribForm(S.goals.find(g => g.id === id), 1); break;
     case 'withdraw': contribForm(S.goals.find(g => g.id === id), -1); break;
     case 'list-rec': recList(); break;
+    case 'list-cats': catList(); break;
+    case 'del-cat': {
+      const t = a.dataset.type;
+      const other = CATS[t][CATS[t].length - 1].id;
+      mutate(() => {
+        S.customCats[t] = S.customCats[t].filter(c => c.id !== id);
+        for (const x of [...S.tx, ...S.recurring]) if (x.type === t && x.cat === id) x.cat = other;
+      }, 'Categoria apagada');
+      catList();
+      break;
+    }
     case 'export': download(`savvy-backup-${today()}.json`, JSON.stringify(S, null, 2), 'application/json'); toast('Cópia exportada'); break;
     case 'csv': csv(); break;
     case 'reset': mutate(() => { S = blank(); }, 'Dados apagados'); break;

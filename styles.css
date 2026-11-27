@@ -320,3 +320,7 @@ h1 { display: flex; align-items: center; gap: 8px; }
 .tx .info small { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; }
 .tx .info small .badge { margin-left: 6px; }
 .toast span { white-space: nowrap; }
+.cats .new-cat .avatar { background: transparent; border: 1.5px dashed #B9BBE6; color: var(--primary); font-size: 18px; }
+.cats .new-cat { color: var(--primary); }
+.new-cat-box { margin-top: 10px; background: #fff; border-radius: 16px; padding: 12px; border: 1px solid var(--line); }
+.new-cat-box .emoji-pick button { width: 36px; height: 36px; font-size: 17px; background: #F4F4FC; }

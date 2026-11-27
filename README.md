@@ -14,7 +14,8 @@ App pessoal para registar gastos mensais (fixos e pontuais), ver estatísticas e
 - **Estatísticas** — gastos por categoria, taxa de poupança, para onde foi o dinheiro (gasto/poupado/livre), comparação com o mês anterior, 12 meses
 - **Objetivos** — metas de poupança com prazo, progresso e quanto juntar por mês
 - **Voltar atrás** — botão de voltar do telemóvel/browser e seta ‹ na app; “Anular” depois de cada alteração
-- **Definições** (toca em *savvy*) — nome, moeda, fixos, marcar tudo como pago, cópia de segurança (JSON), CSV
+- **Categorias personalizadas** — “＋ Nova” na grelha de categorias (emoji + nome); geridas nas Definições
+- **Definições** (toca em *savvy*) — nome, moeda, categorias, fixos, marcar tudo como pago, cópia de segurança (JSON), CSV
 
 ## Publicar (GitHub Pages)
 1. No repositório: **Settings → Pages**
