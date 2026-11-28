@@ -100,7 +100,7 @@ h2 { font-size: 15px; margin: 0; font-weight: 650; }
 .balance .mini b { font-size: 14px; }
 .balance .pill { background: rgba(255,255,255,.18); padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
 
-.quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center; }
+.quick { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; text-align: center; }
 .quick button { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); font-weight: 500; }
 .quick .q-ic {
   width: 48px; height: 48px; border-radius: 15px; background: var(--glass-strong); border: 1px solid var(--glass-border);
@@ -324,3 +324,16 @@ h1 { display: flex; align-items: center; gap: 8px; }
 .cats .new-cat { color: var(--primary); }
 .new-cat-box { margin-top: 10px; background: #fff; border-radius: 16px; padding: 12px; border: 1px solid var(--line); }
 .new-cat-box .emoji-pick button { width: 36px; height: 36px; font-size: 17px; background: #F4F4FC; }
+
+/* Shopping lists */
+.shop-items { display: flex; flex-direction: column; gap: 6px; }
+.shop-item, .shop-add { display: flex; align-items: center; gap: 8px; }
+.shop-item .input, .shop-add .input { padding: 10px 12px; font-size: 14px; }
+.shop-item .si-name { flex: 1; min-width: 0; }
+.si-price { width: 84px; flex: none; text-align: right; }
+.shop-item.done .si-name { text-decoration: line-through; color: var(--muted); }
+.si-del { width: 28px; height: 28px; flex: none; color: var(--muted); font-size: 20px; line-height: 1; }
+.shop-add { margin-top: 10px; }
+.shop-add #nName { flex: 1; min-width: 0; }
+.shop-total { display: flex; justify-content: space-between; align-items: baseline; margin: 16px 4px 8px; font-weight: 600; color: var(--muted); }
+.shop-total b { font-size: 24px; color: var(--text); }

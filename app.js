@@ -2,7 +2,7 @@
 
 /* ================= Data ================= */
 const STORE = 'savvy.v1';
-const VERSION = '1.3';
+const VERSION = '1.4';
 
 const CATS = {
   expense: [
@@ -37,7 +37,7 @@ const CAT_COLORS = ['#5B5FE0', '#F4A9BC', '#8FA8F7', '#F0835E', '#7BCBA4', '#B79
 const COL = { inc: '#5B5FE0', exp: '#F4A9BC', sav: '#7BCBA4' };
 const GOAL_EMOJIS = ['🐷', '🎯', '🏖️', '🚗', '🏠', '💻', '🎓', '💍', '🛟', '✈️', '🎁', '📱'];
 
-const blank = () => ({ version: 2, currency: 'EUR', name: '', tx: [], recurring: [], goals: [], customCats: { expense: [], income: [], saving: [] } });
+const blank = () => ({ version: 2, currency: 'EUR', name: '', tx: [], recurring: [], goals: [], lists: [], customCats: { expense: [], income: [], saving: [] } });
 
 function load() {
   try { return normalize(JSON.parse(localStorage.getItem(STORE)) || {}); }
@@ -45,6 +45,7 @@ function load() {
 }
 function normalize(d) {
   const s = Object.assign(blank(), d);
+  s.lists = Array.isArray(s.lists) ? s.lists : [];
   s.customCats = Object.assign({ expense: [], income: [], saving: [] }, s.customCats || {});
   return s;
 }
@@ -170,7 +171,8 @@ const IC = {
   objetivos: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg>',
   definicoes: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>'
 };
-const VIEWS = { dashboard: 'Dashboard', movimentos: 'Movimentos', estatisticas: 'Estatísticas', objetivos: 'Objetivos', definicoes: 'Definições' };
+IC.compras = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.4 11.2a1 1 0 0 0 1 .8h9.2a1 1 0 0 0 1-.8L20.5 8H6.2"/><circle cx="9.5" cy="20" r="1.3"/><circle cx="17" cy="20" r="1.3"/></svg>';
+const VIEWS = { dashboard: 'Dashboard', movimentos: 'Movimentos', estatisticas: 'Estatísticas', objetivos: 'Objetivos', compras: 'Listas de compras', definicoes: 'Definições' };
 
 /* ================= Charts (SVG) ================= */
 function smoothPath(pts) {
@@ -298,7 +300,8 @@ function quickActions() {
     <button data-action="add" data-type="expense"><span class="q-ic">−</span>Despesa</button>
     <button data-action="add" data-type="income"><span class="q-ic">＋</span>Receita</button>
     <button data-action="add" data-type="saving"><span class="q-ic">🐷</span>Poupança</button>
-    <button data-action="add-goal"><span class="q-ic">🎯</span>Objetivo</button></div>`;
+    <button data-action="add-goal"><span class="q-ic">🎯</span>Objetivo</button>
+    <button data-nav="compras"><span class="q-ic">🛒</span>Compras</button></div>`;
 }
 function goalCard(g, compact) {
   const saved = goalSaved(g);
@@ -460,6 +463,87 @@ function vObjetivos() {
   <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:10px">“Juntar” regista uma poupança 🐷 neste mês. Também podes ligar uma poupança fixa mensal a um objetivo.</p>`;
 }
 
+/* ================= Shopping lists ================= */
+function listTotal(l) { return l.items.reduce((a, i) => a + (i.price || 0), 0); }
+function listTx(l) { return l.txId && S.tx.find(t => t.id === l.txId); }
+function vCompras() {
+  const lists = [...S.lists].sort((a, b) => (!!listTx(a) - !!listTx(b)) || (b.created || '').localeCompare(a.created || ''));
+  const rows = lists.map(l => {
+    const tx = listTx(l), n = l.items.length, done = l.items.filter(i => i.done).length;
+    return `<div class="tx" role="button" tabindex="0" data-action="open-list" data-id="${l.id}">
+      <span class="avatar" style="background:${tx ? 'var(--sav-soft)' : '#E1F4EA'}">${tx ? '✓' : '🛒'}</span>
+      <span class="info"><b>${esc(l.name || 'Lista sem nome')}</b><small>${n ? `${done}/${n} itens` : 'Vazia'}${tx ? `<span class="badge sav">DESPESA ${dayLabel(tx.date).toUpperCase()}</span>` : ''}</small></span>
+      <span class="amt">${fmt(listTotal(l))}</span></div>`;
+  }).join('');
+  return `<div class="card glass">${rows ? `<div class="tx-list">${rows}</div>` : `<div class="empty"><span class="e-ic">🛒</span>Ainda não tens listas.<br>Cria uma, vai pondo o preço de cada coisa e no fim passa o total para despesa.</div>`}</div>
+  <button class="btn primary block" style="margin-top:14px" data-action="new-list">＋ Nova lista</button>`;
+}
+
+function listForm(id) {
+  const l = S.lists.find(x => x.id === id);
+  if (!l) return;
+  // Edits save immediately (no undo toast per keystroke)
+  const persist = () => { save(); render(); };
+  const totalEl = () => $('#lTotal');
+  const draw = (focusNew) => {
+    const tx = listTx(l), top = $('#sheet').scrollTop;
+    openSheet(`
+      <input class="input" id="lName" maxlength="40" placeholder="Nome da lista (ex.: Continente)" value="${esc(l.name)}" style="font-weight:700;font-size:17px;margin-bottom:12px">
+      <div class="shop-items">${l.items.map(i => `<div class="shop-item ${i.done ? 'done' : ''}" data-i="${i.id}">
+        <button type="button" class="check ${i.done ? 'on' : ''}" data-ic="toggle" aria-label="Marcar">${i.done ? '✓' : ''}</button>
+        <input class="input si-name" value="${esc(i.name)}" maxlength="50" aria-label="Artigo">
+        <input class="input si-price" inputmode="decimal" placeholder="0,00" value="${i.price ? i.price.toFixed(2).replace('.', ',') : ''}" aria-label="Preço">
+        <button type="button" class="si-del" data-ic="del" aria-label="Remover">×</button></div>`).join('')}</div>
+      <div class="shop-add">
+        <input class="input" id="nName" maxlength="50" placeholder="Adicionar artigo…" enterkeyhint="next">
+        <input class="input si-price" id="nPrice" inputmode="decimal" placeholder="€" enterkeyhint="done">
+        <button type="button" class="btn primary sm" id="nAdd" aria-label="Adicionar">＋</button></div>
+      <div class="shop-total"><span>Total</span><b id="lTotal">${fmt(listTotal(l))}</b></div>
+      ${tx ? `<p style="font-size:12px;color:var(--muted);text-align:center;margin:6px 0 10px">✓ Registada como despesa de ${fmt(tx.amount)} em ${dayLabel(tx.date).toLowerCase()}.</p>` : ''}
+      <div class="row-btns">
+        <button class="btn danger" data-la="del">Apagar</button>
+        <button class="btn" data-la="copy">Reutilizar</button>
+        ${tx ? `<button class="btn primary" data-la="view">Ver despesa</button>` : `<button class="btn primary" data-la="expense">Passar a despesa</button>`}
+      </div>`);
+    const sh = $('#sheet');
+    $('#lName').onchange = e => { l.name = e.target.value.trim(); persist(); };
+    sh.querySelectorAll('.shop-item').forEach(row => {
+      const it = l.items.find(i => i.id === row.dataset.i);
+      row.querySelector('.si-name').onchange = e => { it.name = e.target.value.trim(); persist(); };
+      const pr = row.querySelector('.si-price');
+      pr.oninput = () => { const v = parseAmt(pr.value); it.price = v > 0 ? v : 0; totalEl().textContent = fmt(listTotal(l)); };
+      pr.onchange = persist;
+      row.querySelector('[data-ic="toggle"]').onclick = () => { it.done = !it.done; persist(); draw(); };
+      row.querySelector('[data-ic="del"]').onclick = () => { l.items = l.items.filter(i => i !== it); persist(); draw(); };
+    });
+    const add = () => {
+      const name = $('#nName').value.trim(), price = parseAmt($('#nPrice').value);
+      if (!name) { $('#nName').focus(); return; }
+      l.items.push({ id: uid(), name, price: price > 0 ? price : 0, done: false });
+      persist(); draw(true);
+    };
+    $('#nAdd').onclick = add;
+    $('#nName').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); $('#nPrice').focus(); } };
+    $('#nPrice').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); add(); } };
+    if (!focusNew) sh.scrollTop = top;
+    if (focusNew) setTimeout(() => { const n = $('#nName'); n.focus(); n.scrollIntoView({ block: 'center' }); }, 30);
+    sh.querySelector('[data-la="del"]').onclick = () => { mutate(() => { S.lists = S.lists.filter(x => x.id !== l.id); }, 'Lista apagada'); closeSheet(); };
+    sh.querySelector('[data-la="copy"]').onclick = () => {
+      const c = { id: uid(), name: l.name, created: today(), items: l.items.map(i => ({ id: uid(), name: i.name, price: 0, done: false })) };
+      S.lists.push(c); save(); render(); toast('Lista copiada sem preços'); listForm(c.id);
+    };
+    const v = sh.querySelector('[data-la="view"]');
+    if (v) v.onclick = () => txForm({ mode: 'tx', item: { ...tx } });
+    const ex = sh.querySelector('[data-la="expense"]');
+    if (ex) ex.onclick = () => {
+      const total = listTotal(l);
+      if (!(total > 0)) { toast('Põe o preço dos artigos primeiro'); return; }
+      txForm({ type: 'expense', item: { cat: 'super', amount: total.toFixed(2).replace('.', ','), desc: l.name || 'Compras', date: today() }, onSave: txId => { l.txId = txId; } });
+    };
+  };
+  draw(!l.items.length);
+}
+
 function vDefinicoes() {
   const opts = ['EUR', 'USD', 'GBP', 'BRL', 'CHF'].map(c => `<option ${c === S.currency ? 'selected' : ''}>${c}</option>`).join('');
   const nTx = S.tx.length, nRec = S.recurring.filter(r => !r.end || r.end >= nowKey()).length;
@@ -512,7 +596,7 @@ function render() {
   $('#monthLabel').textContent = cap(monthLabel(cur));
   $('#viewTitle').textContent = VIEWS[view];
   $('#backBtn').hidden = view === 'dashboard';
-  const fn = { dashboard: vDashboard, movimentos: vMovimentos, estatisticas: vEstatisticas, objetivos: vObjetivos, definicoes: vDefinicoes }[view];
+  const fn = { dashboard: vDashboard, movimentos: vMovimentos, estatisticas: vEstatisticas, objetivos: vObjetivos, compras: vCompras, definicoes: vDefinicoes }[view];
   $('#view').innerHTML = fn();
   $('#rightcol').innerHTML = vRight();
   const f = $('#importFile'); if (f) f.onchange = importFile;
@@ -527,7 +611,13 @@ function openSheet(html) {
   $('#backdrop').hidden = false;
   document.body.style.overflow = 'hidden';
 }
-function hideSheet() { $('#backdrop').hidden = true; document.body.style.overflow = ''; }
+function hideSheet() {
+  $('#backdrop').hidden = true; document.body.style.overflow = '';
+  // Drop shopping lists left empty
+  const n = S.lists.length;
+  S.lists = S.lists.filter(l => l.name || l.items.length);
+  if (S.lists.length !== n) { save(); render(); }
+}
 // Closing goes through history so the phone's back button and the UI behave the same
 function closeSheet() { if (sheetOpen) history.back(); }
 
@@ -539,7 +629,7 @@ function toast(msg, withUndo) {
   toast.t = setTimeout(() => { $('#toast').hidden = true; }, withUndo ? 5000 : 2200);
 }
 
-function txForm({ mode = 'new', type = 'expense', fixed = false, item = {}, month } = {}) {
+function txForm({ mode = 'new', type = 'expense', fixed = false, item = {}, month, onSave } = {}) {
   const st = { type: item.type || type, cat: item.cat || CATS[item.type || type][0].id, adding: false, newIc: CAT_EMOJIS[0], newName: '' };
   if (mode === 'new' && !item.date) item.date = cur === nowKey() ? today() : cur + '-01';
   let paid = mode === 'rec' ? recPaid(item, month) : mode === 'tx' ? item.paid !== false : item.date <= today();
@@ -571,7 +661,7 @@ function txForm({ mode = 'new', type = 'expense', fixed = false, item = {}, mont
         : `<input class="input" id="fDate" type="date" value="${item.date}">`}</div>
       ${st.type === 'expense' ? `<div class="field"><div class="switch-row"><div><b style="font-size:14px">Pago${mode === 'rec' ? ' em ' + monthLabel(month, { month: 'long' }) : ''}</b><small>Desliga se ainda está por pagar</small></div>
         <label class="toggle"><input type="checkbox" id="fPaid" ${paid ? 'checked' : ''}><span></span></label></div></div>` : ''}
-      ${mode === 'new' ? `<div class="field"><div class="switch-row"><div><b style="font-size:14px">Fixo mensal</b><small>Repete automaticamente todos os meses</small></div>
+      ${mode === 'new' && !onSave ? `<div class="field"><div class="switch-row"><div><b style="font-size:14px">Fixo mensal</b><small>Repete automaticamente todos os meses</small></div>
         <label class="toggle"><input type="checkbox" id="fFixed" ${fixed ? 'checked' : ''}><span></span></label></div></div>` : ''}
       <div class="row-btns">
         ${mode === 'tx' ? '<button class="btn danger" data-act="del">Apagar</button>' : ''}
@@ -640,7 +730,7 @@ function txForm({ mode = 'new', type = 'expense', fixed = false, item = {}, mont
           S.recurring.push(r);
         } else {
           const data = { type: st.type, cat: st.cat, amount, desc, date: d, goalId: gid, paid: isExp ? paid : undefined };
-          if (mode === 'new') S.tx.push({ id: uid(), ...data });
+          if (mode === 'new') { const nid = uid(); S.tx.push({ id: nid, ...data }); if (onSave) onSave(nid); }
           else Object.assign(S.tx.find(x => x.id === item.id), data);
         }
       }
@@ -846,6 +936,8 @@ document.addEventListener('click', e => {
       }, 'Tudo marcado como pago');
       break;
     case 'add-goal': goalForm(); break;
+    case 'new-list': { const l = { id: uid(), name: '', created: today(), items: [] }; S.lists.push(l); save(); render(); listForm(l.id); break; }
+    case 'open-list': listForm(id); break;
     case 'edit-goal': goalForm(S.goals.find(g => g.id === id)); break;
     case 'contrib': contribForm(S.goals.find(g => g.id === id), 1); break;
     case 'withdraw': contribForm(S.goals.find(g => g.id === id), -1); break;
