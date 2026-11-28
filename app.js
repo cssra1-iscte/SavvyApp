@@ -2,7 +2,7 @@
 
 /* ================= Data ================= */
 const STORE = 'savvy.v1';
-const VERSION = '1.4';
+const VERSION = '1.4.1';
 
 const CATS = {
   expense: [
@@ -570,6 +570,7 @@ function vDefinicoes() {
     <div class="settings-item"><div><b>Exportar cópia de segurança</b><small>Ficheiro .json com todos os dados</small></div><button class="btn sm" data-action="export">Exportar</button></div>
     <div class="settings-item"><div><b>Importar cópia</b><small>Substitui os dados atuais</small></div><label class="btn sm">Importar<input type="file" accept="application/json,.json" hidden id="importFile"></label></div>
     <div class="settings-item"><div><b>Exportar CSV</b><small>Movimentos do mês para Excel</small></div><button class="btn sm" data-action="csv">CSV</button></div>
+    <div class="settings-item"><div><b>Procurar atualizações</b><small>Versão ${VERSION} · os teus dados ficam guardados</small></div><button class="btn sm" data-action="force-update">Atualizar</button></div>
     <div class="settings-item"><div><b>Apagar tudo</b><small>Podes anular logo a seguir</small></div><button class="btn sm danger" data-action="reset">Apagar</button></div>
   </div>
 
@@ -935,6 +936,7 @@ document.addEventListener('click', e => {
         }
       }, 'Tudo marcado como pago');
       break;
+    case 'force-update': forceUpdate(); break;
     case 'add-goal': goalForm(); break;
     case 'new-list': { const l = { id: uid(), name: '', created: today(), items: [] }; S.lists.push(l); save(); render(); listForm(l.id); break; }
     case 'open-list': listForm(id); break;
@@ -989,6 +991,16 @@ let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; if (view === 'definicoes') render(); });
 
 // Auto-update: check for a new version on open/resume and reload once it takes over
+// Drops the service worker and its file cache (not localStorage) and reloads from the network
+async function forceUpdate() {
+  toast('A atualizar…');
+  try {
+    const regs = await navigator.serviceWorker?.getRegistrations?.() || [];
+    await Promise.all(regs.map(r => r.unregister()));
+    if (window.caches) await Promise.all((await caches.keys()).map(k => caches.delete(k)));
+  } catch {}
+  location.replace(location.pathname + '?u=' + Date.now() + location.hash);
+}
 if ('serviceWorker' in navigator) {
   const hadController = !!navigator.serviceWorker.controller;
   let reloaded = false;
